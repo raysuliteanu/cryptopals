@@ -5,7 +5,10 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.Set;
 
+import static kidoni.CryptoUtils.toHexString;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CryptoUtilsTest {
@@ -36,5 +39,50 @@ class CryptoUtilsTest {
         for (int i = 0; i < hexChars.length(); i++) {
             assertEquals(hexBytes[i], CryptoUtils.hexCharToByte(hexChars.charAt(i)));
         }
+    }
+
+    /*
+    6    2    6    3
+    0110 0010 0110 0011
+    XOR
+    6    1    6    1
+    0110 0001 0110 0001
+    EQUALS
+    0    3    0    2
+    0000 0011 0000 0010
+    */
+    @Test
+    void xor2() throws IOException {
+        // ascii a
+        byte a = 0x61;
+        // ascii b
+        byte b = 0x62;
+        // ascii c
+        byte c = 0x63;
+
+        String abc = toHexString(new byte[]{a, b, c});
+        assertEquals("616263", abc);
+
+        String input = "6263";
+        String key = "61";
+        String xor = CryptoUtils.xor(input, key);
+        assertEquals("0302", xor);
+    }
+
+    @Test
+    void keyMatchesByte() {
+        assertTrue(CryptoUtils.keyMatchesByte((byte) 0x61, 'a'));
+        assertFalse(CryptoUtils.keyMatchesByte((byte) 0x61, 'A'));
+    }
+
+    @Test
+    void computeFrequencies() {
+        String input = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        Map<Character, Float> frequencies = CryptoUtils.computeFrequencies(input.getBytes(StandardCharsets.UTF_8));
+        Set<Map.Entry<Character, Float>> entries = frequencies.entrySet();
+        assertTrue(entries.stream().allMatch(entry -> {
+            Float frequency = CryptoUtils.LETTER_FREQUENCIES.get(entry.getKey().toString().toLowerCase());
+            return frequency.equals(entry.getValue());
+        }));
     }
 }
