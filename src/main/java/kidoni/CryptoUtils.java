@@ -31,8 +31,8 @@ public abstract class CryptoUtils {
     }
 
     public static String xor(String input, String key) throws IOException {
-        assert input.length() % 2 == 0 : "invalid input " + input;
-        assert key.length() % 2 == 0 : "invalid input " + key;
+        assert input.length() % 2 == 0 : "invalid input length for input " + input;
+        assert key.length() % 2 == 0 : "invalid input length for input " + key;
         assert input.length() >= key.length() : "input size must be greater than or equal to the key size";
 
         BitSet inputBitSet = BitSet.valueOf(parseHexString(input));
@@ -48,7 +48,7 @@ public abstract class CryptoUtils {
             bitSet.xor(keyBitSet);
             byte[] bytes = bitSet.toByteArray();
             for (byte aByte : bytes) {
-                if (aByte <= 0xf) {
+                if (aByte >= 0 && aByte <= 0xf) {
                     // pad with "0" e.g. we want "03" not "3"
                     buffer.append(Integer.toHexString(0x0));
                 }
@@ -65,14 +65,15 @@ public abstract class CryptoUtils {
 
     static byte[] parseHexString(InputStream input) throws IOException {
         byte[] originalInput = readFully(input);
-        assert originalInput.length % 2 == 0 : "invalid input size " + originalInput.length;
+        assert originalInput.length % 2 == 0 :
+                "invalid input size " + originalInput.length + " for input " + new String(originalInput);
+
         byte[] buffer = new byte[originalInput.length / 2];
 
-        int j = 0;
-        for (int i = 0; i < originalInput.length; ) {
+        for (int i = 0, j = 0; i < originalInput.length; j++) {
             byte high = hexCharToByte((char) originalInput[i++]);
             byte low = hexCharToByte((char) originalInput[i++]);
-            buffer[j++] = (byte) ((high << BITS_PER_HEX_DIGIT) | low);
+            buffer[j] = (byte) ((high << BITS_PER_HEX_DIGIT) | low);
         }
 
         return buffer;
