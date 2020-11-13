@@ -7,7 +7,9 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public abstract class CryptoUtils {
     public static final String CHARACTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     public static final int BITS_PER_HEX_DIGIT = 4;
@@ -18,16 +20,34 @@ public abstract class CryptoUtils {
         InputStream stream = CryptoUtils.class.getResourceAsStream("/letter-frequency.csv");
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
             reader.lines()
-                    .map(s -> s.split(","))
-                    .forEach(strings -> {
-                        String letter = strings[0];
-                        Float frequency = Float.parseFloat(strings[1]);
-                        LETTER_FREQUENCIES.put(letter, frequency);
-                    });
+                  .map(s -> s.split(","))
+                  .forEach(strings -> {
+                      String letter = strings[0];
+                      Float frequency = Float.parseFloat(strings[1]);
+                      LETTER_FREQUENCIES.put(letter, frequency);
+                  });
         }
         catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public static Optional<String> decrypt(String input) throws IOException {
+        byte[] hexBytes = parseHexString(input);
+
+        Map<Character, Float> frequencies = computeFrequencies(hexBytes);
+
+        Optional<Map.Entry<Character, Float>> max = frequencies.entrySet().stream().max(Map.Entry.comparingByValue());
+
+        if (max.isPresent()) {
+            Map.Entry<Character, Float> entry = max.get();
+            Character key = entry.getKey();
+            String hexStringKey = toHexString(key.toString().toUpperCase().getBytes(StandardCharsets.UTF_8));
+            String value = xor(input, hexStringKey);
+            return Optional.of(value);
+        }
+
+        return Optional.empty();
     }
 
     public static String xor(String input, String key) throws IOException {
@@ -59,11 +79,11 @@ public abstract class CryptoUtils {
         return buffer.toString();
     }
 
-    static byte[] parseHexString(String input) throws IOException {
+    public static byte[] parseHexString(String input) throws IOException {
         return parseHexString(new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)));
     }
 
-    static byte[] parseHexString(InputStream input) throws IOException {
+    public static byte[] parseHexString(InputStream input) throws IOException {
         byte[] originalInput = readFully(input);
         assert originalInput.length % 2 == 0 :
                 "invalid input size " + originalInput.length + " for input " + new String(originalInput);
@@ -79,10 +99,33 @@ public abstract class CryptoUtils {
         return buffer;
     }
 
+    public static Map<Character, Float> computeFrequencies(byte[] hexBytes) {
+        Map<Character, Float> frequencies = new HashMap<>();
+
+        for (int i = 0; i < CHARACTERS.length(); i++) {
+            char key = CHARACTERS.charAt(i);
+            frequencies.put(key, scoreCharacter(hexBytes, key));
+        }
+
+        if (log.isDebugEnabled()) {
+            printFrequencies(frequencies);
+        }
+
+        return frequencies;
+    }
+
+    public static String toHexString(byte[] bytes) {
+        StringBuilder buffer = new StringBuilder();
+        for (byte aByte : bytes) {
+            buffer.append(String.format("%x", aByte));
+        }
+        return buffer.toString();
+    }
+
     static byte hexCharToByte(char c) {
-        if (c >= '0' && c <= '9') return (byte) (c - '0');
-        if (c >= 'A' && c <= 'F') return (byte) ((c - 'A') + 10);
-        if (c >= 'a' && c <= 'f') return (byte) ((c - 'a') + 10);
+        if (c >= '0' && c <= '9') { return (byte) (c - '0'); }
+        if (c >= 'A' && c <= 'F') { return (byte) ((c - 'A') + 10); }
+        if (c >= 'a' && c <= 'f') { return (byte) ((c - 'a') + 10); }
 
         throw new IllegalArgumentException("invalid byte: " + c);
     }
@@ -93,43 +136,6 @@ public abstract class CryptoUtils {
         byte[] bytes = outputStream.toByteArray();
         assert read == bytes.length : "byte array size should equal read bytes";
         return bytes;
-    }
-
-    static String toHexString(byte[] bytes) {
-        StringBuilder buffer = new StringBuilder();
-        for (byte aByte : bytes) {
-            buffer.append(String.format("%x", aByte));
-        }
-        return buffer.toString();
-    }
-
-    static Optional<String> decrypt(String input) throws IOException {
-        byte[] hexBytes = parseHexString(input);
-
-        Map<Character, Float> frequencies = computeFrequencies(hexBytes);
-
-        Optional<Map.Entry<Character, Float>> max = frequencies.entrySet().stream().max(Map.Entry.comparingByValue());
-
-        if (max.isPresent()) {
-            Map.Entry<Character, Float> entry = max.get();
-            Character key = entry.getKey();
-            return Optional.of(xor(input, toHexString(key.toString().toUpperCase().getBytes(StandardCharsets.UTF_8))));
-        }
-
-        return Optional.empty();
-    }
-
-    static Map<Character, Float> computeFrequencies(byte[] hexBytes) {
-        Map<Character, Float> frequencies = new HashMap<>();
-
-        for (int i = 0; i < CHARACTERS.length(); i++) {
-            char key = CHARACTERS.charAt(i);
-            frequencies.put(key, scoreCharacter(hexBytes, key));
-        }
-
-        printFrequencies(frequencies);
-
-        return frequencies;
     }
 
     // how often does 'key' appear in 'hexBytes'
@@ -151,10 +157,29 @@ public abstract class CryptoUtils {
     }
 
     static void printFrequencies(Map<Character, Float> frequencies) {
-        frequencies.entrySet().stream().sorted(Map.Entry.comparingByValue()).forEach(System.out::println);
+        frequencies.entrySet().stream().sorted(Map.Entry.comparingByValue()).forEach(entry -> log.debug(entry.toString()));
     }
 
     static void printBinaryString(String hexString) {
-        System.out.println(new BigInteger(hexString, 16).toString(2));
+        log.debug(new BigInteger(hexString, 16).toString(2));
+    }
+
+    static boolean isNotAlphaOrPunctuation(String data) {
+        char[] chars = data.toCharArray();
+        for (char aChar : chars) {
+            if (!(Character.isLetterOrDigit(aChar) || Character.isSpaceChar(aChar) || isPunctuation(Character.getType(aChar)))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static boolean isPunctuation(int type) {
+        return Character.getType(type) == Character.START_PUNCTUATION ||
+                Character.getType(type) == Character.END_PUNCTUATION ||
+                Character.getType(type) == Character.CONNECTOR_PUNCTUATION ||
+                Character.getType(type) == Character.DASH_PUNCTUATION ||
+                Character.getType(type) == Character.INITIAL_QUOTE_PUNCTUATION ||
+                Character.getType(type) == Character.FINAL_QUOTE_PUNCTUATION;
     }
 }

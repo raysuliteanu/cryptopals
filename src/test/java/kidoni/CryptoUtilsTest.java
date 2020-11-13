@@ -1,15 +1,17 @@
 package kidoni;
 
-import org.junit.jupiter.api.Test;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Set;
+import org.junit.jupiter.api.Test;
 
 import static kidoni.CryptoUtils.toHexString;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CryptoUtilsTest {
     public static final String INPUT1 = "1c0111001f010100061a024b53535009181c";
