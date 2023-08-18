@@ -1,6 +1,11 @@
 package kidoni;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.BitSet;
@@ -8,6 +13,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+
+import static java.util.Map.Entry.comparingByValue;
+import static java.util.Optional.empty;
+import static java.util.Optional.of;
 
 @Slf4j
 public abstract class CryptoUtils {
@@ -18,14 +27,17 @@ public abstract class CryptoUtils {
 
     static {
         InputStream stream = CryptoUtils.class.getResourceAsStream("/letter-frequency.csv");
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
-            reader.lines()
-                  .map(s -> s.split(","))
-                  .forEach(strings -> {
-                      String letter = strings[0];
-                      Float frequency = Float.parseFloat(strings[1]);
-                      LETTER_FREQUENCIES.put(letter, frequency);
-                  });
+        try {
+            assert stream != null;
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+                reader.lines()
+                      .map(s -> s.split(","))
+                      .forEach(strings -> {
+                          String letter = strings[0];
+                          Float frequency = Float.parseFloat(strings[1]);
+                          LETTER_FREQUENCIES.put(letter, frequency);
+                      });
+            }
         }
         catch (IOException e) {
             e.printStackTrace();
@@ -37,17 +49,18 @@ public abstract class CryptoUtils {
 
         Map<Character, Float> frequencies = computeFrequencies(hexBytes);
 
-        Optional<Map.Entry<Character, Float>> max = frequencies.entrySet().stream().max(Map.Entry.comparingByValue());
+        Optional<Map.Entry<Character, Float>> max = frequencies.entrySet().stream()
+                .max(comparingByValue());
 
         if (max.isPresent()) {
             Map.Entry<Character, Float> entry = max.get();
             Character key = entry.getKey();
             String hexStringKey = toHexString(key.toString().toUpperCase().getBytes(StandardCharsets.UTF_8));
             String value = xor(input, hexStringKey);
-            return Optional.of(value);
+            return of(value);
         }
 
-        return Optional.empty();
+        return empty();
     }
 
     public static String xor(String input, String key) throws IOException {
@@ -157,7 +170,9 @@ public abstract class CryptoUtils {
     }
 
     static void printFrequencies(Map<Character, Float> frequencies) {
-        frequencies.entrySet().stream().sorted(Map.Entry.comparingByValue()).forEach(entry -> log.debug(entry.toString()));
+        frequencies.entrySet().stream()
+                .sorted(comparingByValue())
+                .forEach(entry -> log.debug(entry.toString()));
     }
 
     static void printBinaryString(String hexString) {

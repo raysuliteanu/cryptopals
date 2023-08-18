@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.util.Objects.requireNonNull;
 import static kidoni.CryptoUtils.decrypt;
 import static kidoni.CryptoUtils.parseHexString;
 
@@ -57,7 +58,7 @@ public class XorDecryptFile {
             reader = new BufferedReader(new FileReader(filename));
         }
         else if (type.equals("classpath")) {
-            reader = new BufferedReader(new InputStreamReader(XorDecryptFile.class.getResourceAsStream(filename)));
+            reader = new BufferedReader(new InputStreamReader(requireNonNull(XorDecryptFile.class.getResourceAsStream(filename))));
         }
         else {
             throw new IllegalArgumentException("unsupported file type: " + type);
