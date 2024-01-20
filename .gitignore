@@ -9,9 +9,12 @@
 # Ignore Gradle build output directory
 build/
 
-!gradle/wrapper/gradle-wrapper.jar
-
 *.class
 *.jar
 
+# *don't* ignore gradle-wrapper.jar 
+!gradle/wrapper/gradle-wrapper.jar
+
 .vscode/
+
+.fleet/
